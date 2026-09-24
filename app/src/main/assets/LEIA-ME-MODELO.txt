@@ -1,0 +1,14 @@
+COLOQUE AQUI O SEU MODELO TREINADO
+==================================
+
+1) Copie o arquivo "best.onnx" (exportado pelo professor a partir do YOLOv8)
+   para esta pasta: app/src/main/assets/best.onnx
+
+2) O rótulo das classes deve estar em app/src/main/assets/labels.txt,
+   um rótulo por linha, NA MESMA ORDEM do treinamento.
+
+3) Alternativa: sem colocar nada aqui, abra o app e use o botão
+   "Selecionar modelo" (Tela 1) para carregar um .onnx do armazenamento.
+
+Enquanto o modelo não for adicionado, a Tela 1 exibirá o erro:
+"Modelo ONNX não encontrado".

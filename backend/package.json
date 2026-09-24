@@ -1,0 +1,16 @@
+{
+  "name": "capsafe-backend",
+  "version": "1.0.0",
+  "description": "Servidor Backend REST do CapSafe — persistência das inferências de detecção de capacete (Trabalho N2 - UniRV)",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js"
+  },
+  "keywords": ["rest", "api", "yolo", "onnx", "seguranca-do-trabalho"],
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

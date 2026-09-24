@@ -181,7 +181,7 @@ android/
 
 ## 9. Equipe e entrega
 
-- Formato: grupo (até 4 alunos) — preencha os nomes aqui.
+- Equipe: Felipe Martins e Maria Eduarda.
 - Submissão: repositórios públicos no GitHub (App + Backend) e APK.
 - Dica de repositório: separe `capSafe-android` (esta pasta) e `capSafe-backend`
   em dois repositórios, ou use um repositório único com as pastas em `apps/`.

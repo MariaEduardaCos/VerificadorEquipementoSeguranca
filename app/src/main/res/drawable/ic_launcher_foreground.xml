@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Capacete de segurança (hard hat) — ícone do CapSafe -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,56 C32,41 41.8,31 54,31 C66.2,31 76,41 76,56 L76,59 L32,59 Z M23,62 L85,62 A4,4 0 0 1 85,70 L23,70 A4,4 0 0 1 23,62 Z" />
+    <path
+        android:fillColor="#FFF7ED"
+        android:pathData="M51,31.5 L57,31.5 L57,50 L51,50 Z" />
+</vector>
