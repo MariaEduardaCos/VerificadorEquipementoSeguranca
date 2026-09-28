@@ -1,0 +1,18 @@
+[
+    {
+        "merged": "br.unirv.capsafe.app-debug-57:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "br.unirv.capsafe.app-main-59:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "br.unirv.capsafe.app-debug-57:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "br.unirv.capsafe.app-main-59:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "br.unirv.capsafe.app-debug-57:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "br.unirv.capsafe.app-main-59:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "br.unirv.capsafe.app-debug-57:/xml_file_paths.xml.flat",
+        "source": "br.unirv.capsafe.app-main-59:/xml/file_paths.xml"
+    }
+]

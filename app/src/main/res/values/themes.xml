@@ -1,0 +1,7 @@
+<resources>
+    <!-- Tema base apenas para a Activity — toda a UI é Jetpack Compose (Light Mode obrigatório) -->
+    <style name="Theme.CapSafe" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

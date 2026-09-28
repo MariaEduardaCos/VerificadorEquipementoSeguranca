@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#EA580C</color>
+    <string name="app_name">CapSafe</string>
+    <string name="app_tagline">Verificação de Capacete de Segurança — Visão Computacional On-Device</string>
+    <style name="Theme.CapSafe" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

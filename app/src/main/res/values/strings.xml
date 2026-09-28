@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">CapSafe</string>
+    <string name="app_tagline">Verificação de Capacete de Segurança — Visão Computacional On-Device</string>
+</resources>
