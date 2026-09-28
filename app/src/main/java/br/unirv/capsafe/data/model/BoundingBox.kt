@@ -32,9 +32,6 @@ data class BoundingBox(
     /** Rótulos que indicam VIOLAÇÃO (cabeça descoberta / sem capacete). */
     val isViolation: Boolean get() = classLabel.trim().lowercase() in VIOLATION_LABELS
 
-    /** Rótulo amigável e direto para exibição na UI e na imagem anotada. */
-    val displayLabel: String get() = friendlyLabel(classLabel)
-
     fun toJsonObject(): JSONObject = JSONObject().apply {
         put("id_caixa", boxId)
         put("rotulo_classe", classLabel)
@@ -54,14 +51,5 @@ data class BoundingBox(
         val VIOLATION_LABELS = setOf(
             "cabeca", "cabeça", "head", "sem-capacete", "no-helmet", "sem_capacete"
         )
-
-        fun friendlyLabel(label: String): String {
-            val limpo = label.trim().lowercase()
-            return when {
-                limpo in VIOLATION_LABELS || limpo == "sem capacete" -> "SEM CAPACETE"
-                limpo in HELMET_LABELS || limpo == "com capacete" -> "COM CAPACETE"
-                else -> label.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-            }
-        }
     }
 }

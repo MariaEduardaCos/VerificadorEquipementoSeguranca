@@ -40,6 +40,23 @@
                     }
                 },
                 {
+                    "source": "C:\\Users\\User\\Downloads\\VerificadorEquipementoSeguranca-main\\VerificadorEquipementoSeguranca-main\\app\\src\\main\\res\\values\\strings.xml",
+                    "from": {
+                        "startLines": "1,2",
+                        "startColumns": "4,4",
+                        "startOffsets": "16,61",
+                        "endColumns": "44,108",
+                        "endOffsets": "56,165"
+                    },
+                    "to": {
+                        "startLines": "103,104",
+                        "startColumns": "4,4",
+                        "startOffsets": "6269,6314",
+                        "endColumns": "44,108",
+                        "endOffsets": "6309,6418"
+                    }
+                },
+                {
                     "source": "C:\\Users\\User\\.gradle\\caches\\8.9\\transforms\\fb5685fc7c8d57f62eacdd9111e8edb3\\transformed\\foundation-release\\res\\values\\values.xml",
                     "from": {
                         "startLines": "2,3",
@@ -54,6 +71,25 @@
                         "startOffsets": "12469,12525",
                         "endColumns": "55,54",
                         "endOffsets": "12520,12575"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\User\\Downloads\\VerificadorEquipementoSeguranca-main\\VerificadorEquipementoSeguranca-main\\app\\src\\main\\res\\values\\themes.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "117",
+                        "endLines": "5",
+                        "endColumns": "12",
+                        "endOffsets": "348"
+                    },
+                    "to": {
+                        "startLines": "228",
+                        "startColumns": "4",
+                        "startOffsets": "14624",
+                        "endLines": "231",
+                        "endColumns": "12",
+                        "endOffsets": "14855"
                     }
                 },
                 {
@@ -95,6 +131,23 @@
                     }
                 },
                 {
+                    "source": "C:\\Users\\User\\Downloads\\VerificadorEquipementoSeguranca-main\\VerificadorEquipementoSeguranca-main\\app\\src\\main\\res\\values\\colors.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "56",
+                        "endOffsets": "107"
+                    },
+                    "to": {
+                        "startLines": "7",
+                        "startColumns": "4",
+                        "startOffsets": "501",
+                        "endColumns": "56",
+                        "endOffsets": "553"
+                    }
+                },
+                {
                     "source": "C:\\Users\\User\\.gradle\\caches\\8.9\\transforms\\c7daf36ef022970ffc49a7ddcb1aa039\\transformed\\savedstate-1.2.1\\res\\values\\values.xml",
                     "from": {
                         "startLines": "2",
@@ -109,23 +162,6 @@
                         "startOffsets": "5886",
                         "endColumns": "53",
                         "endOffsets": "5935"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\User\\Documents\\antigravity\\splendid-hertz\\app\\src\\main\\res\\values\\strings.xml",
-                    "from": {
-                        "startLines": "1,2",
-                        "startColumns": "4,4",
-                        "startOffsets": "16,61",
-                        "endColumns": "44,108",
-                        "endOffsets": "56,165"
-                    },
-                    "to": {
-                        "startLines": "103,104",
-                        "startColumns": "4,4",
-                        "startOffsets": "6269,6314",
-                        "endColumns": "44,108",
-                        "endOffsets": "6309,6418"
                     }
                 },
                 {
@@ -216,25 +252,6 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\User\\Documents\\antigravity\\splendid-hertz\\app\\src\\main\\res\\values\\themes.xml",
-                    "from": {
-                        "startLines": "2",
-                        "startColumns": "4",
-                        "startOffsets": "117",
-                        "endLines": "5",
-                        "endColumns": "12",
-                        "endOffsets": "348"
-                    },
-                    "to": {
-                        "startLines": "228",
-                        "startColumns": "4",
-                        "startOffsets": "14624",
-                        "endLines": "231",
-                        "endColumns": "12",
-                        "endOffsets": "14855"
-                    }
-                },
-                {
                     "source": "C:\\Users\\User\\.gradle\\caches\\8.9\\transforms\\d1ec15b0ecd4ca7a6e9d1897d1008219\\transformed\\customview-poolingcontainer-1.0.0\\res\\values\\values.xml",
                     "from": {
                         "startLines": "2,3",
@@ -268,23 +285,6 @@
                         "endLines": "362,368,374,377,388",
                         "endColumns": "24,24,24,24,24",
                         "endOffsets": "19702,19946,20193,20326,20738"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\User\\Documents\\antigravity\\splendid-hertz\\app\\src\\main\\res\\values\\colors.xml",
-                    "from": {
-                        "startLines": "2",
-                        "startColumns": "4",
-                        "startOffsets": "55",
-                        "endColumns": "56",
-                        "endOffsets": "107"
-                    },
-                    "to": {
-                        "startLines": "7",
-                        "startColumns": "4",
-                        "startOffsets": "501",
-                        "endColumns": "56",
-                        "endOffsets": "553"
                     }
                 }
             ]

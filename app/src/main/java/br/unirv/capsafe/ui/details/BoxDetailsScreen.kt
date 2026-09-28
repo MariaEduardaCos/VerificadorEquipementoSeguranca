@@ -234,9 +234,8 @@ private fun CaixaCard(caixa: CaixaEntity) {
     ) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val nomeAmigavel = br.unirv.capsafe.data.model.BoundingBox.friendlyLabel(caixa.rotuloClasse)
                 Text(
-                    text = "Caixa #${"%02d".format(caixa.idCaixa)} — $nomeAmigavel",
+                    text = "Caixa #${"%02d".format(caixa.idCaixa)} (${caixa.rotuloClasse})",
                     style = MaterialTheme.typography.titleSmall,
                     color = corClasse,
                     modifier = Modifier.weight(1f)

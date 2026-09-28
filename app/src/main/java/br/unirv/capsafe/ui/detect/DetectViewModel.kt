@@ -27,42 +27,10 @@ import kotlinx.coroutines.withContext
  * Orquestra: modelo ONNX (RF1), aquisição de imagem (RF2), parâmetros (RF3),
  * inferência local (RF4), métricas geométricas (RF5) e envio ao servidor (RF6).
  */
-import android.content.Context
-import java.io.File
-
 class DetectViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ServiceLocator.repository(application)
     private var detector: YoloOnnxDetector? = null
-
-    var pendingCameraUri: Uri? = null
-        private set
-
-    fun criarUriCamera(context: Context): Uri {
-        val dir = File(
-            context.getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES) ?: context.cacheDir,
-            "camera"
-        ).apply { mkdirs() }
-        val arquivo = File(dir, "captura_${System.currentTimeMillis()}.jpg")
-        if (arquivo.exists()) {
-            arquivo.delete()
-        }
-        arquivo.createNewFile()
-        val uri = androidx.core.content.FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            arquivo
-        )
-        pendingCameraUri = uri
-        return uri
-    }
-
-    fun onCameraResult(sucesso: Boolean) {
-        val uri = pendingCameraUri
-        if (sucesso && uri != null) {
-            onImagePicked(uri)
-        }
-    }
 
     data class DetectUiState(
         val modelLoaded: Boolean = false,
@@ -102,16 +70,15 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
         val context = getApplication<Application>()
         try {
             val bytes = context.assets.open(MODEL_ASSET).use { it.readBytes() }
-            val rotulosConfig = resolverRotulos(context)
-            val novoDetector = YoloOnnxDetector(rotulosConfig)
-            val rotulosFinais = novoDetector.loadFromBytes(bytes, MODEL_ASSET)
+            val rotulos = resolverRotulos(context)
+            val novoDetector = YoloOnnxDetector(rotulos).apply { loadFromBytes(bytes, MODEL_ASSET) }
             detector = novoDetector
             _uiState.update {
                 it.copy(
                     modelLoaded = true,
                     modelName = MODEL_ASSET,
                     modelError = null,
-                    labels = rotulosFinais
+                    labels = rotulos
                 )
             }
         } catch (e: Exception) {
@@ -154,16 +121,18 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
                     destino.outputStream().use { saida -> entrada.copyTo(saida) }
                 } ?: error("Não foi possível ler o arquivo selecionado.")
                 val bytes = destino.readBytes()
-                val rotulosConfig = resolverRotulos(context)
-                val novoDetector = (detector ?: YoloOnnxDetector(rotulosConfig))
-                val rotulosFinais = novoDetector.loadFromBytes(bytes, destino.name)
+                val rotulos = resolverRotulos(context)
+                val novoDetector = (detector ?: YoloOnnxDetector(rotulos)).apply {
+                    labels = rotulos
+                    loadFromBytes(bytes, destino.name)
+                }
                 detector = novoDetector
                 _uiState.update {
                     it.copy(
                         modelLoaded = true,
                         modelName = destino.name,
                         modelError = null,
-                        labels = rotulosFinais
+                        labels = rotulos
                     )
                 }
             } catch (e: Exception) {
@@ -194,25 +163,6 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         }
-    }
-
-    /** Descarta a imagem selecionada e limpa resultados transitórios. */
-    fun limparImagem() {
-        _uiState.update {
-            it.copy(
-                imageUri = null,
-                imageBitmap = null,
-                errorMessage = null,
-                result = null,
-                annotatedBitmap = null,
-                syncMessage = null
-            )
-        }
-    }
-
-    /** Trata negação de permissão de câmera. */
-    fun onCameraPermissionDenied() {
-        _uiState.update { it.copy(errorMessage = "Permissão da câmera é necessária para capturar fotos.") }
     }
 
     /** RF3 — Slider de limiar de confiança. */
@@ -352,6 +302,6 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
     companion object {
         const val MODEL_ASSET = "best.onnx"
         const val LABELS_ASSET = "labels.txt"
-        val DEFAULT_LABELS = listOf("cabeça", "capacete", "pessoa")
+        val DEFAULT_LABELS = listOf("capacete", "cabeca", "pessoa")
     }
 }

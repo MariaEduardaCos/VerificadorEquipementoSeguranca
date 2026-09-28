@@ -15,12 +15,6 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
-        // Limita aos processadores de celulares fisicos reais (ARM),
-        // eliminando binarios x86 desnecessarios do ONNX Runtime e reduzindo o APK em mais de 50%
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
-        }
     }
 
     buildTypes {
@@ -36,7 +30,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        encoding = "UTF-8"
     }
 
     kotlinOptions {

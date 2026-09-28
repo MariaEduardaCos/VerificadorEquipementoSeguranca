@@ -7,13 +7,13 @@ import androidx.compose.ui.graphics.Color
 
 /*
  * Tema CapSafe — EXCLUSIVAMENTE Light Mode (enunciado, seção 7).
- * Design System "Obra Segura": azul tecnológico + cinza aço.
+ * Design System "Obra Segura": laranja de sinalização + cinza aço.
  */
 private val LightColors = lightColorScheme(
-    primary = TechBlue,
+    primary = SafetyOrange,
     onPrimary = Color.White,
-    primaryContainer = TechBlueLight,
-    onPrimaryContainer = TechBlueDark,
+    primaryContainer = SafetyOrangeLight,
+    onPrimaryContainer = SafetyOrangeDark,
     secondary = SteelBlue,
     onSecondary = Color.White,
     secondaryContainer = SteelLight,

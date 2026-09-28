@@ -11,8 +11,6 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.util.Log
 import br.unirv.capsafe.data.model.BoundingBox
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import kotlin.math.max
 import kotlin.math.min
@@ -61,66 +59,11 @@ class YoloOnnxDetector(
     val loadedModelName: String get() = modelName
 
     /** RF1 — carrega modelo embarcado nos assets (bytes já lidos pelo chamador). */
-    fun loadFromBytes(bytes: ByteArray, name: String): List<String> {
+    fun loadFromBytes(bytes: ByteArray, name: String) {
         session?.close()
-        val sess = env.createSession(bytes, buildOptions())
-        session = sess
+        session = env.createSession(bytes, buildOptions())
         modelName = name
-
-        // Tenta deduzir rótulos diretamente do metadata embutido no modelo ONNX (padrão YOLOv8)
-        val metadataLabels = getModelMetadataLabels()
-        if (!metadataLabels.isNullOrEmpty()) {
-            labels = metadataLabels
-            Log.i(TAG, "Rótulos obtidos diretamente do metadata do modelo: $labels")
-        } else {
-            Log.i(TAG, "Modelo sem metadata 'names'; usando rótulos configurados: $labels")
-        }
-
-        Log.i(TAG, "Modelo ONNX carregado com sucesso: $name (classes=${labels.size}: $labels)")
-        return labels
-    }
-
-    fun getModelMetadataLabels(): List<String>? {
-        val sess = session ?: return null
-        return try {
-            val custom = sess.metadata.customMetadata
-            val namesStr = custom["names"]
-            if (!namesStr.isNullOrBlank()) {
-                parseNames(namesStr)
-            } else {
-                null
-            }
-        } catch (e: Throwable) {
-            Log.w(TAG, "Falha ao ler metadata do ONNX: ${e.message}")
-            null
-        }
-    }
-
-    private fun parseNames(namesStr: String): List<String> {
-        val regex = Regex("""(\d+)\s*:\s*['"]([^'"]+)['"]""")
-        val matches = regex.findAll(namesStr).toList()
-        if (matches.isNotEmpty()) {
-            val map = mutableMapOf<Int, String>()
-            for (m in matches) {
-                val idx = m.groupValues[1].toIntOrNull() ?: continue
-                val rawLabel = m.groupValues[2].trim()
-                map[idx] = traduzirRotulo(rawLabel)
-            }
-            val maxIdx = map.keys.maxOrNull() ?: -1
-            if (maxIdx >= 0) {
-                return (0..maxIdx).map { i -> map[i] ?: "classe_${i + 1}" }
-            }
-        }
-        return emptyList()
-    }
-
-    private fun traduzirRotulo(raw: String): String {
-        return when (raw.trim().lowercase()) {
-            "head", "cabeca", "cabeça" -> "cabeça"
-            "helmet", "capacete", "hardhat", "hard-hat", "hard_hat" -> "capacete"
-            "person", "pessoa" -> "pessoa"
-            else -> raw.trim()
-        }
+        Log.i(TAG, "Modelo ONNX carregado: $name")
     }
 
     fun close() {
@@ -130,8 +73,6 @@ class YoloOnnxDetector(
 
     private fun buildOptions(): OrtSession.SessionOptions =
         OrtSession.SessionOptions().apply {
-            // Habilita todas as otimizações de grafo do ONNX Runtime (fusão de camadas Conv+Relu, dobramento de constantes)
-            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
             if (useNnapi) {
                 // Aceleração por NPU/GPU via NNAPI quando disponível; fallback para CPU.
                 try {
@@ -141,9 +82,7 @@ class YoloOnnxDetector(
                 }
             }
             try {
-                // Ajusta threads de acordo com a quantidade de núcleos da CPU do dispositivo
-                val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 4)
-                setIntraOpNumThreads(threads)
+                setIntraOpNumThreads(4)
             } catch (_: Throwable) {
             }
         }
@@ -170,15 +109,12 @@ class YoloOnnxDetector(
         val padY = (inputSize - newH) / 2f
         val letterboxed = letterbox(source, newW, newH)
 
-        // 2. Pré-processamento CHW normalizado [0..1] em DirectBuffer (zero-copy JNI)
-        val inputBuffer = BitmapUtils.bitmapToChwBuffer(letterboxed, inputSize)
+        // 2. Pré-processamento CHW normalizado [0..1]
+        val input = BitmapUtils.bitmapToChw(letterboxed, inputSize)
         val shape = longArrayOf(1, 3, inputSize.toLong(), inputSize.toLong())
 
-        // Libera imediatamente o bitmap temporário do letterbox da memória nativa
-        letterboxed.recycle()
-
         // 3. Forward pass no ONNX Runtime (pesos congelados — inferência)
-        OnnxTensor.createTensor(env, inputBuffer, shape).use { tensor ->
+        OnnxTensor.createTensor(env, FloatBuffer.wrap(input), shape).use { tensor ->
             val inputName = sess.inputNames.iterator().next()
             sess.run(mapOf(inputName to tensor)).use { output ->
                 // 4. Pós-processamento
@@ -199,9 +135,6 @@ class YoloOnnxDetector(
         val canvas = Canvas(result)
         canvas.drawColor(Color.rgb(114, 114, 114))
         canvas.drawBitmap(resized, (inputSize - newW) / 2f, (inputSize - newH) / 2f, null)
-        if (resized != source) {
-            resized.recycle()
-        }
         return result
     }
 
@@ -304,40 +237,33 @@ class YoloOnnxDetector(
         )
     }
 
-    /** Non-Maximum Suppression (NMS) por classe para eliminar caixas redundantes. */
+    /** Non-Maximum Suppression — remove caixas sobrepostas do mesmo objeto. */
     private fun nonMaxSuppression(
         detections: List<RawDetection>,
         iouThreshold: Float
     ): List<RawDetection> {
-        val porClasse = detections.groupBy { it.classIndex }
-        val resultado = mutableListOf<RawDetection>()
-
-        porClasse.values.forEach { grupo ->
-            val ordenadas = grupo.sortedByDescending { it.confidence }.toMutableList()
-            while (ordenadas.isNotEmpty()) {
-                val melhor = ordenadas.removeAt(0)
-                resultado.add(melhor)
-                ordenadas.removeAll { candidate -> iou(melhor, candidate) > iouThreshold }
-            }
+        val ordenadas = detections.sortedByDescending { it.confidence }.toMutableList()
+        val mantidas = mutableListOf<RawDetection>()
+        while (ordenadas.isNotEmpty()) {
+            val atual = ordenadas.removeAt(0)
+            mantidas.add(atual)
+            ordenadas.removeAll { iou(atual, it) > iouThreshold }
         }
-        return resultado
+        return mantidas
     }
 
     private fun iou(a: RawDetection, b: RawDetection): Float {
-        val xA = max(a.xMin, b.xMin)
-        val yA = max(a.yMin, b.yMin)
-        val xB = min(a.xMax, b.xMax)
-        val yB = min(a.yMax, b.yMax)
-
-        val interW = max(0f, xB - xA)
-        val interH = max(0f, yB - yA)
-        val interArea = interW * interH
-        if (interArea <= 0f) return 0f
-
+        val interLeft = max(a.xMin, b.xMin)
+        val interTop = max(a.yMin, b.yMin)
+        val interRight = min(a.xMax, b.xMax)
+        val interBottom = min(a.yMax, b.yMax)
+        val interW = max(0f, interRight - interLeft)
+        val interH = max(0f, interBottom - interTop)
+        val inter = interW * interH
         val areaA = (a.xMax - a.xMin) * (a.yMax - a.yMin)
         val areaB = (b.xMax - b.xMin) * (b.yMax - b.yMin)
-        val union = areaA + areaB - interArea
-        return if (union <= 0f) 0f else interArea / union
+        val union = areaA + areaB - inter
+        return if (union <= 0f) 0f else inter / union
     }
 
     companion object {
@@ -349,26 +275,6 @@ class YoloOnnxDetector(
  * Anotação visual e utilitários de imagem.
  */
 object BitmapUtils {
-
-    /** Converte Bitmap para layout CHW normalizado (RGB, 0..1) em FloatBuffer direto (zero-copy JNI). */
-    fun bitmapToChwBuffer(bitmap: Bitmap, size: Int): FloatBuffer {
-        val area = size * size
-        val buffer = ByteBuffer.allocateDirect(1 * 3 * area * 4)
-            .order(ByteOrder.nativeOrder())
-            .asFloatBuffer()
-
-        val pixels = IntArray(area)
-        bitmap.getPixels(pixels, 0, size, 0, 0, size, size)
-
-        for (i in 0 until area) {
-            val p = pixels[i]
-            buffer.put(i, ((p shr 16) and 0xFF) / 255f)          // R
-            buffer.put(area + i, ((p shr 8) and 0xFF) / 255f)    // G
-            buffer.put(2 * area + i, (p and 0xFF) / 255f)        // B
-        }
-        buffer.rewind()
-        return buffer
-    }
 
     /** Converte Bitmap para layout CHW normalizado (RGB, 0..1). */
     fun bitmapToChw(bitmap: Bitmap, size: Int): FloatArray {
@@ -395,7 +301,7 @@ object BitmapUtils {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
-            this.textSize = textSize
+            textSize = textSize
             typeface = Typeface.DEFAULT_BOLD
         }
 
@@ -413,7 +319,7 @@ object BitmapUtils {
             paint.color = cor
             canvas.drawRect(rect, paint)
             // Fundo do rótulo
-            val texto = "${box.displayLabel} ${(box.confidence * 100).toInt()}%"
+            val texto = "${box.classLabel} ${(box.confidence * 100).toInt()}%"
             val larguraTexto = textPaint.measureText(texto)
             val topTexto = (rect.top - textSize * 1.5f).coerceAtLeast(0f)
             val fundo = RectF(

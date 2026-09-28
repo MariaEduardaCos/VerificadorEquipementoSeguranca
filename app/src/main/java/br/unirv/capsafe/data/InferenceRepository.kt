@@ -1,6 +1,5 @@
 package br.unirv.capsafe.data
 
-import android.content.Context
 import br.unirv.capsafe.data.local.AppDatabase
 import br.unirv.capsafe.data.local.CaixaEntity
 import br.unirv.capsafe.data.local.SessaoEntity
@@ -81,40 +80,41 @@ class InferenceRepository(private val dao: AppDatabaseDao) {
     /** Importa o histórico do servidor para o Room (consulta RF7 no app). */
     suspend fun importarDoServidor(baseUrl: String): Int {
         val remoto = ApiClient.api(baseUrl).historico()
-        remoto.forEach { sessaoDto: SessaoDto ->
+        remoto.forEach { sessaoDto ->
             dao.inserirSessaoComCaixas(
-                sessao = SessaoEntity(
-                    idSessao = sessaoDto.id_sessao,
-                    dataHoraMs = parseIsoDate(sessaoDto.data_hora),
-                    nomeModelo = sessaoDto.nome_modelo,
-                    tempoExecucaoMs = sessaoDto.tempo_execucao_ms,
-                    totalObjetos = sessaoDto.total_objetos,
-                    confiancaMedia = sessaoDto.confianca_media,
-                    larguraPx = sessaoDto.dimensao_imagem.largura_px,
-                    alturaPx = sessaoDto.dimensao_imagem.altura_px,
-                    sincronizado = true,
-                    uriImagem = null
-                ),
-                caixas = sessaoDto.caixas_delimitadoras.map { caixaDto: CaixaDto ->
-                    CaixaEntity(
-                        idCaixa = caixaDto.id_caixa,
-                        idSessao = sessaoDto.id_sessao,
-                        rotuloClasse = caixaDto.rotulo_classe,
-                        confianca = caixaDto.confianca,
-                        larguraPx = caixaDto.largura_px,
-                        alturaPx = caixaDto.altura_px,
-                        centroideX = caixaDto.centroide_x,
-                        centroideY = caixaDto.centroide_y,
-                        areaPx2 = caixaDto.area_px2
-                    )
-                }
+                sessaoDto.toEntity(),
+                sessaoDto.caixas_delimitadoras.map { it.toEntity(sessaoDto.id_sessao) }
             )
         }
         return remoto.size
     }
 
-    private fun parseIsoDate(iso: String): Long = try {
-        java.time.Instant.parse(iso).toEpochMilli()
+    private fun SessaoDto.toEntity() = SessaoEntity(
+        idSessao = id_sessao,
+        dataHoraMs = parseIso(data_hora),
+        nomeModelo = nome_modelo,
+        tempoExecucaoMs = tempo_execucao_ms,
+        totalObjetos = total_objetos,
+        confiancaMedia = confianca_media,
+        larguraPx = dimensao_imagem.largura_px,
+        alturaPx = dimensao_imagem.altura_px,
+        sincronizado = true
+    )
+
+    private fun CaixaDto.toEntity(idSessao: String) = CaixaEntity(
+        idCaixa = id_caixa,
+        idSessao = idSessao,
+        rotuloClasse = rotulo_classe,
+        confianca = confianca,
+        larguraPx = largura_px,
+        alturaPx = altura_px,
+        centroideX = centroide_x,
+        centroideY = centroide_y,
+        areaPx2 = area_px2
+    )
+
+    private fun parseIso(iso: String): Long = try {
+        OffsetDateTime.parse(iso, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant().toEpochMilli()
     } catch (e: Exception) {
         try {
             OffsetDateTime.parse(iso).toInstant().toEpochMilli()

@@ -5,16 +5,11 @@ import androidx.compose.ui.graphics.Color
 /*
  * DESIGN SYSTEM "OBRA SEGURA" — CapSafe
  * Paleta inspirada em sinalização de segurança do trabalho:
- * azul tecnológico / laranja de sinalização + cinza aço + verde de conformidade.
+ * laranja de sinalização + cinza aço + verde de conformidade.
  * Tema Light Mode obrigatório (enunciado, seção 7).
  */
 
-// Primária — Azul Tecnológico (Modelo Figuras 3a e 3b)
-val TechBlue = Color(0xFF0288D1)
-val TechBlueDark = Color(0xFF01579B)
-val TechBlueLight = Color(0xFFE1F5FE)
-
-// Laranja de Sinalização (capacete/obra)
+// Primária — Laranja de Sinalização (capacete/obra)
 val SafetyOrange = Color(0xFFEA580C)
 val SafetyOrangeDark = Color(0xFFC2410C)
 val SafetyOrangeLight = Color(0xFFFFEDD5)

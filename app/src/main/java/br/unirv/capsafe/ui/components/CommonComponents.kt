@@ -73,7 +73,6 @@ fun SectionCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -142,8 +141,8 @@ enum class ChipTipo { SUCESSO, ERRO, ATENCAO, NEUTRO }
 fun corPorClasse(rotulo: String): Color {
     val limpo = rotulo.trim().lowercase()
     return when {
-        limpo in br.unirv.capsafe.data.model.BoundingBox.HELMET_LABELS || limpo == "com capacete" -> BoxHelmetColor
-        limpo in br.unirv.capsafe.data.model.BoundingBox.VIOLATION_LABELS || limpo == "sem capacete" -> BoxViolationColor
+        limpo in br.unirv.capsafe.data.model.BoundingBox.HELMET_LABELS -> BoxHelmetColor
+        limpo in br.unirv.capsafe.data.model.BoundingBox.VIOLATION_LABELS -> BoxViolationColor
         else -> BoxOtherColor
     }
 }

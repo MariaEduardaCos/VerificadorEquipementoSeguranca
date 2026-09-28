@@ -1,7 +1,5 @@
 package br.unirv.capsafe.data.model
 
-import br.unirv.capsafe.data.local.CaixaEntity
-import br.unirv.capsafe.data.local.SessaoEntity
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -29,33 +27,33 @@ data class InferenceResult(
         get() = if (boundingBoxes.isEmpty()) 0f
         else boundingBoxes.map { it.confidence }.average().toFloat()
 
-    val helmetCount: Int
-        get() = boundingBoxes.count { it.isHelmet }
+    val helmetCount: Int get() = boundingBoxes.count { it.isHelmet }
+    val violationCount: Int get() = boundingBoxes.count { it.isViolation }
 
-    val violationCount: Int
-        get() = boundingBoxes.count { it.isViolation }
-
+    /** Índice de conformidade = capacetes / (capacetes + cabeças descobertas). */
     val complianceRate: Float?
         get() {
-            val monitoradas = helmetCount + violationCount
-            return if (monitoradas == 0) null else helmetCount.toFloat() / monitoradas
+            val monitoradas = boundingBoxes.filter { it.isHelmet || it.isViolation }
+            if (monitoradas.isEmpty()) return null
+            return monitoradas.count { it.isHelmet }.toFloat() / monitoradas.size
         }
 
-    fun classCounts(): Map<String, Int> =
-        boundingBoxes.groupingBy { it.classLabel }.eachCount()
+    fun classCounts(): Map<String, Int> = boundingBoxes.groupingBy { it.classLabel }.eachCount()
 
+    /** RF6 — payload JSON exatamente na estrutura de referência do enunciado (seção 4). */
     fun toJsonPayload(): String {
-        val isoDate = Instant.ofEpochMilli(timestampMs)
-            .atZone(ZoneId.of("UTC"))
-            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        val dataHoraIso = DateTimeFormatter
+            .ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+            .withZone(ZoneOffset.UTC)
+            .format(Instant.ofEpochMilli(timestampMs))
 
         return JSONObject().apply {
             put("id_sessao", sessionId)
-            put("data_hora", isoDate)
+            put("data_hora", dataHoraIso)
             put("nome_modelo", modelName)
             put("tempo_execucao_ms", executionTimeMs)
             put("total_objetos", totalObjects)
-            put("confianca_media", (averageConfidence * 100).roundToInt() / 100.0)
+            put("confianca_media", (averageConfidence * 100).roundToInt() / 100f)
             put(
                 "dimensao_imagem",
                 JSONObject()
@@ -97,6 +95,12 @@ data class InferenceResult(
     }
 
     companion object {
-        fun novoIdSessao(): String = "sessao_${System.currentTimeMillis()}"
+        /** Gera id no padrão "sessao_20260918_230601" (referência do enunciado). */
+        fun novoIdSessao(): String {
+            val formatter = DateTimeFormatter
+                .ofPattern("yyyyMMdd_HHmmssSSS")
+                .withZone(ZoneId.systemDefault())
+            return "sessao_" + formatter.format(Instant.now())
+        }
     }
 }

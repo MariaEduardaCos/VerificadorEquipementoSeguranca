@@ -1,6 +1,5 @@
 package br.unirv.capsafe.ui.result
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,21 +16,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Expand
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -51,7 +44,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -59,16 +52,19 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.unirv.capsafe.data.model.InferenceResult
 import br.unirv.capsafe.ui.components.ChipTipo
 import br.unirv.capsafe.ui.components.SectionCard
+import br.unirv.capsafe.ui.components.StatCard
 import br.unirv.capsafe.ui.components.StatusChip
 import br.unirv.capsafe.ui.components.corPorClasse
 import br.unirv.capsafe.ui.detect.DetectViewModel
+import br.unirv.capsafe.ui.theme.BoxHelmetColor
+import br.unirv.capsafe.ui.theme.BoxOtherColor
+import br.unirv.capsafe.ui.theme.BoxViolationColor
 import br.unirv.capsafe.ui.theme.ComplianceGreen
 import br.unirv.capsafe.ui.theme.ComplianceGreenDark
 import br.unirv.capsafe.ui.theme.ComplianceGreenLight
@@ -78,6 +74,10 @@ import br.unirv.capsafe.ui.theme.ViolationRedDark
 import br.unirv.capsafe.ui.theme.ViolationRedLight
 import br.unirv.capsafe.util.AppUtils
 
+/**
+ * TELA 2 (Resultado Gráfico): contagem total, tempo em ms, confiança média,
+ * índice de conformidade de capacete e imagem anotada com as caixas (RF5).
+ */
 @Composable
 fun ResultScreen(
     viewModel: DetectViewModel,
@@ -111,156 +111,102 @@ fun ResultScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         CabecalhoResultado(resultado, state.syncMessage)
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(96.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "${resultado.totalObjects}",
-                        style = MaterialTheme.typography.displayMedium.copy(
-                            fontSize = 38.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    )
-                }
-            }
+        AlertaConformidade(resultado)
 
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(96.dp),
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "${(resultado.averageConfidence * 100).toInt()}%",
-                        style = MaterialTheme.typography.displayMedium.copy(
-                            fontSize = 38.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-                    )
-                }
-            }
+        // Estatísticas principais (RF5/RF6)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatCard(
+                valor = "${resultado.totalObjects}",
+                titulo = "OBJETOS",
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                valor = "${resultado.executionTimeMs}",
+                titulo = "TEMPO (MS)",
+                modifier = Modifier.weight(1f),
+                corValor = MaterialTheme.colorScheme.secondary
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatCard(
+                valor = "${(resultado.averageConfidence * 100).toInt()}%",
+                titulo = "CONFIANÇA MÉDIA",
+                modifier = Modifier.weight(1f),
+                corValor = MaterialTheme.colorScheme.tertiary
+            )
+            val conformidade = resultado.complianceRate
+            StatCard(
+                valor = if (conformidade == null) "N/A" else "${(conformidade * 100).toInt()}%",
+                titulo = "COM CAPACETE",
+                modifier = Modifier.weight(1f),
+                corValor = if (conformidade == null) TextPrimary
+                else if (conformidade >= 1f) ComplianceGreen else ViolationRed
+            )
         }
 
-        Text(
-            text = "Tempo de execução: ${resultado.executionTimeMs} ms (Local NPU/CPU)",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 2.dp)
-        )
-
+        // Contagem por classe
         val contagens = resultado.classCounts()
         if (contagens.isNotEmpty()) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
+                modifier = Modifier.horizontalScroll(rememberScrollState())
             ) {
                 contagens.forEach { (rotulo, qtd) ->
-                    val rotuloExibicao = br.unirv.capsafe.data.model.BoundingBox.friendlyLabel(rotulo)
-                    val cor = corPorClasse(rotuloExibicao)
+                    val cor = corPorClasse(rotulo)
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        colors = CardDefaults.cardColors(containerColor = cor.copy(alpha = 0.12f)),
+                        shape = MaterialTheme.shapes.small
                     ) {
                         Text(
-                            text = "$rotuloExibicao: $qtd",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            text = "$rotulo: $qtd",
+                            style = MaterialTheme.typography.labelLarge,
                             color = cor,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
                 }
             }
         }
 
+        // Imagem anotada (toque para expandir)
         state.annotatedBitmap?.let { anotada ->
             var expandida by remember { mutableStateOf(false) }
-            SectionCard(titulo = "Imagem Anotada (Toque para expandir)", icone = Icons.Filled.Expand) {
-                Box(
+            SectionCard(titulo = "Imagem Anotada (toque para expandir)", icone = Icons.Filled.Expand) {
+                Image(
+                    bitmap = anotada.asImageBitmap(),
+                    contentDescription = "Imagem com caixas delimitadoras anotadas",
+                    contentScale = ContentScale.FillWidth,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { expandida = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        bitmap = anotada.asImageBitmap(),
-                        contentDescription = "Imagem com caixas delimitadoras anotadas",
-                        contentScale = ContentScale.FillWidth,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                    )
-                }
+                        .clip(MaterialTheme.shapes.medium)
+                        .clickable { expandida = true }
+                )
             }
             if (expandida) {
-                ZoomableImageDialog(bitmap = anotada.asImageBitmap()) { expandida = false }
+                ZoomableImageDialog(bitmap = anotada) { expandida = false }
             }
         }
 
-        AlertaConformidade(resultado)
+        // Payload JSON enviado ao servidor (RF6) — auditoria
+        PayloadCard(resultado)
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedButton(
                 onClick = {
                     viewModel.prepararNovaAnalise()
                     onNovaAnalise()
                 },
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp),
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("Nova análise", fontWeight = FontWeight.SemiBold)
-            }
+                modifier = Modifier.weight(1f)
+            ) { Text("Nova análise") }
             Button(
                 onClick = onVerHistorico,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("Ver histórico", fontWeight = FontWeight.SemiBold)
-            }
+                modifier = Modifier.weight(1f)
+            ) { Text("Ver histórico") }
         }
-
-        PayloadCard(resultado)
 
         Spacer(Modifier.height(8.dp))
     }
@@ -268,116 +214,80 @@ fun ResultScreen(
 
 @Composable
 private fun CabecalhoResultado(resultado: InferenceResult, syncMessage: String?) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                "CapSafe — Detector de Infrações de EPI",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                text = "Detecção #${resultado.sessionId.removePrefix("sessao_")}",
+                style = MaterialTheme.typography.titleMedium
             )
             Text(
-                "Detecção #${resultado.sessionId.removePrefix("sessao_")} · ${AppUtils.dataHora(resultado.timestampMs)}",
-                style = MaterialTheme.typography.labelSmall,
+                text = AppUtils.dataHora(resultado.timestampMs) + " · " + resultado.modelName,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                shape = CircleShape
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Filled.Computer,
-                        contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        "Local",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Imagem: ${resultado.imageWidthPx} × ${resultado.imageHeightPx} px",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                if (syncMessage?.contains("Enviado") == true) {
+                    StatusChip(syncMessage, ChipTipo.SUCESSO)
+                } else if (syncMessage != null) {
+                    StatusChip("Salvo localmente", ChipTipo.ATENCAO)
                 }
-            }
-            if (syncMessage?.contains("Enviado") == true) {
-                Spacer(Modifier.width(6.dp))
-                StatusChip("✓ Servidor", ChipTipo.SUCESSO)
             }
         }
     }
 }
 
-private data class BannerInfo(
-    val container: Color,
-    val conteudo: Color,
-    val icone: ImageVector,
-    val texto: String
-)
-
+/** Banner de conformidade — núcleo do caso de uso "uso de capacete". */
 @Composable
 private fun AlertaConformidade(resultado: InferenceResult) {
     val temCapacete = resultado.helmetCount > 0
     val temViolacao = resultado.violationCount > 0
+    val monitoradas = resultado.helmetCount + resultado.violationCount
 
-    val info = when {
-        temViolacao -> BannerInfo(
-            ViolationRedLight, ViolationRedDark,
-            Icons.Filled.Warning,
-            "⚠ Alerta: ${resultado.violationCount} trabalhador(es) SEM capacete detectado(s)!"
-        )
-        temCapacete -> BannerInfo(
-            ComplianceGreenLight, ComplianceGreenDark,
-            Icons.Filled.CheckCircle,
-            "✓ Conforme: Todos os ${resultado.helmetCount} trabalhadores com capacete!"
-        )
-        resultado.totalObjects == 0 -> BannerInfo(
-            ComplianceGreenLight, ComplianceGreenDark,
-            Icons.Filled.CheckCircle,
-            "✓ Conforme: Nenhuma cabeça desprotegida detectada!"
-        )
-        else -> BannerInfo(
+    val (container, conteudo, icone, texto) = when {
+        monitoradas == 0 -> Four(
             MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant,
             Icons.Filled.DataObject,
-            "Nenhuma infração detectada (${resultado.totalObjects} objeto(s) analisado(s))."
+            "Nenhuma classe de capacete/cabeça entre as detecções " +
+                "(${resultado.totalObjects} objetos)."
+        )
+        temViolacao -> Four(
+            ViolationRedLight, ViolationRedDark,
+            Icons.Filled.Warning,
+            "⚠ ${resultado.violationCount} trabalhador(es) SEM capacete detectado(s)!"
+        )
+        else -> Four(
+            ComplianceGreenLight, ComplianceGreenDark,
+            Icons.Filled.CheckCircle,
+            "✓ Todos os ${resultado.helmetCount} trabalhadores com capacete!"
         )
     }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = info.container),
-        shape = RoundedCornerShape(8.dp)
-    ) {
+    Card(colors = CardDefaults.cardColors(containerColor = container)) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(info.icone, contentDescription = null, tint = info.conteudo)
+            Icon(icone, contentDescription = null, tint = conteudo)
             Spacer(Modifier.size(10.dp))
-            Text(
-                info.texto,
-                style = MaterialTheme.typography.bodyMedium,
-                color = info.conteudo,
-                fontWeight = FontWeight.SemiBold
-            )
+            Text(texto, style = MaterialTheme.typography.bodyMedium, color = conteudo, fontWeight = FontWeight.SemiBold)
         }
     }
 }
+
+private data class Four<C, I, S>(val primeiro: C, val segundo: I, val terceiro: I, val quarto: S)
 
 @Composable
 private fun PayloadCard(resultado: InferenceResult) {
     val clipboard = LocalClipboardManager.current
     var expandido by remember { mutableStateOf(false) }
     SectionCard(
-        titulo = "Payload JSON (RF6 — Auditoria REST)",
+        titulo = "Payload JSON (RF6 — POST enviado ao backend)",
         icone = Icons.Filled.DataObject,
         acao = {
             IconButton(onClick = { clipboard.setText(AnnotatedString(resultado.toJsonPayload())) }) {
@@ -386,36 +296,35 @@ private fun PayloadCard(resultado: InferenceResult) {
         }
     ) {
         Text(
-            if (expandido) "Ocultar dados ▲" else "Exibir payload JSON ▼",
+            if (expandido) "contraído ▲" else "expandido ▼",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.clickable { expandido = !expandido }
         )
-        if (expandido) {
-            val scrollV = rememberScrollState()
-            val scrollH = rememberScrollState()
-            Box(
+        val scrollV = rememberScrollState()
+        val scrollH = rememberScrollState()
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = if (expandido) 360.dp else 140.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Text(
+                text = resultado.toJsonPayload(),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = TextPrimary,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 280.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Text(
-                    text = resultado.toJsonPayload(),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = TextPrimary,
-                    modifier = Modifier
-                        .padding(10.dp)
-                        .verticalScroll(scrollV)
-                        .horizontalScroll(scrollH)
-                )
-            }
+                    .padding(10.dp)
+                    .verticalScroll(scrollV)
+                    .horizontalScroll(scrollH)
+            )
         }
     }
 }
 
+/** Dialog fullscreen com pinch-zoom para inspecionar a imagem anotada. */
 @Composable
 private fun ZoomableImageDialog(bitmap: androidx.compose.ui.graphics.ImageBitmap, onDismiss: () -> Unit) {
     var escala by remember { mutableStateOf(1f) }
@@ -450,8 +359,8 @@ private fun ZoomableImageDialog(bitmap: androidx.compose.ui.graphics.ImageBitmap
                     )
             )
             Text(
-                "Pinça para zoom · Toque para fechar",
-                color = Color.White.copy(alpha = 0.8f),
+                "Pinça para zoom · toque para fechar",
+                color = Color.White.copy(alpha = 0.7f),
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
