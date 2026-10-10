@@ -1,3 +1,2 @@
-capacete
-cabeca
-pessoa
+head
+helmet

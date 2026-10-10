@@ -220,7 +220,7 @@ private fun SessaoCard(sessao: SessaoEntity, onClick: () -> Unit) {
                     colors = AssistChipDefaults.assistChipColors(
                         disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        disabledLeadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
                 AssistChip(
@@ -245,7 +245,7 @@ private fun SessaoCard(sessao: SessaoEntity, onClick: () -> Unit) {
                     colors = AssistChipDefaults.assistChipColors(
                         disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        disabledLeadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
             }

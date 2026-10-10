@@ -26,7 +26,7 @@ Aplicativo Android **Full-Stack em Kotlin**: Visão Computacional, **Inferência
 | RF1 | Gerenciamento de modelos ONNX (embarcado ou do dispositivo) | `ui/detect/DetectViewModel.kt` (carregarModeloEmbarcado / onModelSelected), `assets/best.onnx` |
 | RF2 | Aquisição de imagens (Câmera / Galeria) | `ui/detect/DetectScreen.kt` (ActivityResultContracts.TakePicture + GetContent) |
 | RF3 | Ajuste dinâmico: Slider de confiança + filtro de classes | `DetectScreen.kt` (Slider + FilterChips), `YoloOnnxDetector.detect()` |
-| RF4 | Pipeline de inferência local on-device | `inference/YoloOnnxDetector.kt` (letterbox → CHW → ORT → NMS) |
+| RF4 | Pipeline de inferência local on-device | `domain/yolo/YoloDetector.kt` (CHW → ORT → filtro RF3 → NMS) |
 | RF5 | Métricas geométricas (W, H, centróide, área) | `data/model/BoundingBox.kt` (Xc = Xmin + W/2 ; Yc = Ymin + H/2 ; A = W×H) |
 | RF6 | Comunicação com backend (POST JSON automático) | `data/InferenceRepository.salvarInferencia()` + `data/remote/InferenceApi.kt` |
 | RF7 | Persistência e consulta no servidor | `backend/server.js` (coleções JSON 1-N) + `importarDoServidor()` |
@@ -69,12 +69,17 @@ model.export(format='onnx', dynamic=True, simplify=True)  # → best.onnx
 O fluxo de inferência implementado no app segue a aula (*Visão Computacional e Aprendizado Profundo*):
 
 ```
-Imagem → Letterbox 640×640 → tensor CHW [1,3,640,640] normalizado
+Imagem → Redimensiona 640×640 → tensor CHW [1,3,640,640] normalizado
        → ONNX Runtime (forward pass, pesos congelados)
        → saída [1, 4+nc, 8400] → filtro de confiança (RF3)
        → NMS (IoU 0.45) → reescala p/ resolução original
        → BoundingBox(W, H, Centróide, Área)  (RF5)
 ```
+
+> O pipeline de detecção (`domain/yolo/YoloDetector.kt`) foi portado do projeto de
+> referência **AlessaApp**, com os contextos ajustados: rótulos padrão de EPI
+> (capacete/cabeca/pessoa), filtro de classes antes do NMS (RF3), opção NNAPI e
+> anotação visual com a paleta de conformidade (verde/vermelho).
 
 ---
 
@@ -136,6 +141,9 @@ android/
 │   └── java/br/unirv/capsafe/
 │       ├── MainActivity.kt
 │       ├── navigation/CapSafeApp.kt        # Bottom Nav + rotas das 4 telas
+│       ├── domain/                          # Camada de domínio (padrão AlessaApp)
+│       │   ├── model/DetectionResult.kt     # BoundingBox, Detection, InferenceSummary, ModelInfo
+│       │   └── yolo/YoloDetector.kt         # RF1/RF4 — pipeline ONNX + NMS (portado do AlessaApp)
 │       ├── ui/theme/                       # DESIGN SYSTEM "Obra Segura"
 │       │   ├── Color.kt  Type.kt  Shape.kt  Theme.kt
 │       ├── ui/components/CommonComponents.kt
@@ -143,13 +151,12 @@ android/
 │       ├── ui/result/                      # Tela 2 (resultado gráfico)
 │       ├── ui/history/                     # Tela 3 (histórico) + ViewModel
 │       ├── ui/details/                     # Tela 4 (detalhamento geométrico)
-│       ├── inference/YoloOnnxDetector.kt   # RF1/RF4 — pipeline ONNX + NMS + anotação
 │       ├── data/
 │       │   ├── model/ (BoundingBox, InferenceResult, DTOs)
 │       │   ├── local/ (Room: Entities, DAO, Database)
 │       │   ├── remote/ (Retrofit: InferenceApi, ApiClient)
 │       │   ├── AppPrefs.kt  InferenceRepository.kt (RF6/RF7)
-│       └── util/AppUtils.kt
+│       └── util/ (AppUtils.kt, ImagePainterUtils.kt)
 └── backend/                        # API REST Node/Express (JSON, porta 3030)
 ```
 

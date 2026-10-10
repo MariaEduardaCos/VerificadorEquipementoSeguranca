@@ -180,7 +180,46 @@ app.get('/api/inferencia/:id/caixas', (req, res) => {
   res.json(caixas);
 });
 
-// Remoção (cascata)
+// Atualização (UPDATE — CRUD)
+app.put('/api/inferencia/:id', (req, res) => {
+  const banco = carregarBanco();
+  const index = banco.sessoes.findIndex((s) => s.id_sessao === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ erro: 'Sessão não encontrada' });
+  }
+
+  const payload = req.body;
+  banco.sessoes[index] = {
+    ...banco.sessoes[index],
+    ...payload,
+    id_sessao: req.params.id,
+    atualizado_em: new Date().toISOString()
+  };
+
+  if (Array.isArray(payload.caixas_delimitadoras)) {
+    banco.caixas = banco.caixas.filter((c) => c.id_sessao !== req.params.id);
+    const novasCaixas = payload.caixas_delimitadoras.map((c, i) => ({
+      id_sessao: req.params.id,
+      id_caixa: c.id_caixa ?? i + 1,
+      rotulo_classe: c.rotulo_classe,
+      confianca: c.confianca ?? 0,
+      largura_px: c.largura_px ?? 0,
+      altura_px: c.altura_px ?? 0,
+      centroide_x: c.centroide_x ?? 0,
+      centroide_y: c.centroide_y ?? 0,
+      area_px2: c.area_px2 ?? (c.largura_px ?? 0) * (c.altura_px ?? 0)
+    }));
+    banco.caixas.push(...novasCaixas);
+  }
+
+  salvarBanco(banco);
+  res.json({
+    mensagem: 'Sessão atualizada com sucesso',
+    sessao: banco.sessoes[index]
+  });
+});
+
+// Remoção (DELETE — CRUD)
 app.delete('/api/inferencia/:id', (req, res) => {
   const banco = carregarBanco();
   const antes = banco.sessoes.length;
@@ -225,10 +264,15 @@ app.get('/', (_req, res) => {
   res.json({
     servico: 'CapSafe Backend — API REST de inferências',
     endpoints: [
-      'POST   /api/inferencia',
-      'GET    /api/inferencia/historico?limite=10&modelo=best.onnx',
-      'GET    /api/inferencia/:id',
-      'GET    /api/inferencia/:id/caixas',
+      'POST   /api/inferencia (Create)',
+      'GET    /api/inferencia/historico (Read All)',
+      'GET    /api/inferencia/:id (Read One)',
+      'GET    /api/inferencia/:id/caixas (Read Caixas)',
+      'PUT    /api/inferencia/:id (Update)',
+      'DELETE /api/inferencia/:id (Delete)',
+      'GET    /api/stats (Estatísticas)',
+      'GET    /api/health (Healthcheck)'
+    ]
       'DELETE /api/inferencia/:id',
       'GET    /api/stats',
       'GET    /api/health'

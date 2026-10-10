@@ -187,7 +187,7 @@ fun ResultScreen(
                 )
             }
             if (expandida) {
-                ZoomableImageDialog(bitmap = anotada) { expandida = false }
+                ZoomableImageDialog(bitmap = anotada.asImageBitmap()) { expandida = false }
             }
         }
 
@@ -242,6 +242,13 @@ private fun CabecalhoResultado(resultado: InferenceResult, syncMessage: String?)
     }
 }
 
+private data class StatusInfo(
+    val containerColor: Color,
+    val contentColor: Color,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val text: String
+)
+
 /** Banner de conformidade — núcleo do caso de uso "uso de capacete". */
 @Composable
 private fun AlertaConformidade(resultado: InferenceResult) {
@@ -249,38 +256,36 @@ private fun AlertaConformidade(resultado: InferenceResult) {
     val temViolacao = resultado.violationCount > 0
     val monitoradas = resultado.helmetCount + resultado.violationCount
 
-    val (container, conteudo, icone, texto) = when {
-        monitoradas == 0 -> Four(
+    val info = when {
+        monitoradas == 0 -> StatusInfo(
             MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant,
             Icons.Filled.DataObject,
             "Nenhuma classe de capacete/cabeça entre as detecções " +
                 "(${resultado.totalObjects} objetos)."
         )
-        temViolacao -> Four(
+        temViolacao -> StatusInfo(
             ViolationRedLight, ViolationRedDark,
             Icons.Filled.Warning,
             "⚠ ${resultado.violationCount} trabalhador(es) SEM capacete detectado(s)!"
         )
-        else -> Four(
+        else -> StatusInfo(
             ComplianceGreenLight, ComplianceGreenDark,
             Icons.Filled.CheckCircle,
             "✓ Todos os ${resultado.helmetCount} trabalhadores com capacete!"
         )
     }
 
-    Card(colors = CardDefaults.cardColors(containerColor = container)) {
+    Card(colors = CardDefaults.cardColors(containerColor = info.containerColor)) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icone, contentDescription = null, tint = conteudo)
+            Icon(info.icon, contentDescription = null, tint = info.contentColor)
             Spacer(Modifier.size(10.dp))
-            Text(texto, style = MaterialTheme.typography.bodyMedium, color = conteudo, fontWeight = FontWeight.SemiBold)
+            Text(info.text, style = MaterialTheme.typography.bodyMedium, color = info.contentColor, fontWeight = FontWeight.SemiBold)
         }
     }
 }
-
-private data class Four<C, I, S>(val primeiro: C, val segundo: I, val terceiro: I, val quarto: S)
 
 @Composable
 private fun PayloadCard(resultado: InferenceResult) {

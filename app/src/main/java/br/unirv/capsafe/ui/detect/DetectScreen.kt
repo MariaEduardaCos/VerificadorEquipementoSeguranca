@@ -1,6 +1,10 @@
 package br.unirv.capsafe.ui.detect
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -90,7 +94,7 @@ fun DetectScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
     var showHelp by remember { mutableStateOf(false) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -100,8 +104,20 @@ fun DetectScreen(
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { sucesso ->
-        val uri = pendingCameraUri
-        if (sucesso && uri != null) viewModel.onImagePicked(uri)
+        val uriStr = pendingCameraUri
+        if (sucesso && uriStr != null) {
+            viewModel.onImagePicked(Uri.parse(uriStr))
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { concedida ->
+        if (concedida) {
+            abrirCamera(context, viewModel, { pendingCameraUri = it }) { uri -> cameraLauncher.launch(uri) }
+        } else {
+            viewModel.setErrorMessage("Permissão da câmera negada. Conceda permissão nas configurações.")
+        }
     }
 
     val modelLauncher = rememberLauncherForActivityResult(
@@ -174,7 +190,7 @@ fun DetectScreen(
                 value = state.customLabelsText,
                 onValueChange = viewModel::onCustomLabelsChange,
                 label = { Text("Rótulos personalizados (separados por vírgula)") },
-                placeholder = { Text(state.labels.joinToString(", ").ifEmpty { "capacete, cabeca, pessoa" }) },
+                placeholder = { Text(state.labels.joinToString(", ").ifEmpty { "cabeça, capacete, pessoa" }) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = MaterialTheme.typography.bodySmall
@@ -209,13 +225,16 @@ fun DetectScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
-                        val dir = File(context.cacheDir, "camera").apply { mkdirs() }
-                        val arquivo = File(dir, "captura_${System.currentTimeMillis()}.jpg")
-                        val uri = FileProvider.getUriForFile(
-                            context, "${context.packageName}.fileprovider", arquivo
-                        )
-                        pendingCameraUri = uri
-                        cameraLauncher.launch(uri)
+                        val temPermissao = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.CAMERA
+                        ) == PackageManager.PERMISSION_GRANTED
+
+                        if (temPermissao) {
+                            abrirCamera(context, viewModel, { pendingCameraUri = it }) { uri -> cameraLauncher.launch(uri) }
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
                     },
                     modifier = Modifier.weight(1f)
                 ) {
@@ -224,7 +243,13 @@ fun DetectScreen(
                     Text("Tirar Foto")
                 }
                 OutlinedButton(
-                    onClick = { galleryLauncher.launch("image/*") },
+                    onClick = {
+                        try {
+                            galleryLauncher.launch("image/*")
+                        } catch (e: Exception) {
+                            viewModel.setErrorMessage("Erro ao abrir galeria: ${e.message}")
+                        }
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Filled.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -396,6 +421,25 @@ private fun CabecalhoCapSafe() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+private fun abrirCamera(
+    context: Context,
+    viewModel: DetectViewModel,
+    setPendingUri: (String) -> Unit,
+    launchCamera: (Uri) -> Unit
+) {
+    try {
+        val dir = File(context.cacheDir, "camera").apply { mkdirs() }
+        val arquivo = File(dir, "captura_${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(
+            context, "${context.packageName}.fileprovider", arquivo
+        )
+        setPendingUri(uri.toString())
+        launchCamera(uri)
+    } catch (e: Exception) {
+        viewModel.setErrorMessage("Erro ao abrir câmera: ${e.message}")
     }
 }
 

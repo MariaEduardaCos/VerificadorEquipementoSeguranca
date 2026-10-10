@@ -17,17 +17,18 @@ bun --hot server.js
 
 O servidor sobe na porta **3030** (variável `PORT` pode alterar).
 
-## Endpoints
+## Endpoints (CRUD)
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| POST | `/api/inferencia` | Salva a inferência (payload de referência do enunciado) |
-| GET | `/api/inferencia/historico` | Histórico cronológico (`?limite=10&modelo=best.onnx`) |
-| GET | `/api/inferencia/:id` | Detalhe da sessão + caixas |
-| GET | `/api/inferencia/:id/caixas` | Caixas delimitadoras da sessão |
-| DELETE | `/api/inferencia/:id` | Remove sessão (cascata) |
-| GET | `/api/stats` | Estatísticas agregadas (bônus) |
-| GET | `/api/health` | Healthcheck |
+| Operação | Método | Rota | Descrição |
+|----------|--------|------|-----------|
+| **Create** | POST | `/api/inferencia` | Salva a inferência e suas caixas delimitadoras |
+| **Read** | GET | `/api/inferencia/historico` | Histórico cronológico (`?limite=10&modelo=best.onnx`) |
+| **Read** | GET | `/api/inferencia/:id` | Detalhe da sessão + caixas |
+| **Read** | GET | `/api/inferencia/:id/caixas` | Caixas delimitadoras da sessão |
+| **Update** | PUT | `/api/inferencia/:id` | Atualiza sessão e caixas existentes |
+| **Delete** | DELETE | `/api/inferencia/:id` | Remove sessão (com exclusão em cascata nas caixas) |
+| Metrics | GET | `/api/stats` | Estatísticas agregadas de inferências |
+| Health | GET | `/api/health` | Healthcheck do servidor |
 
 ## Persistência
 

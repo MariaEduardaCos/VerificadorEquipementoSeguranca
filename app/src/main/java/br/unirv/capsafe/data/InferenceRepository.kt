@@ -1,5 +1,6 @@
 package br.unirv.capsafe.data
 
+import android.content.Context
 import br.unirv.capsafe.data.local.AppDatabase
 import br.unirv.capsafe.data.local.CaixaEntity
 import br.unirv.capsafe.data.local.SessaoEntity

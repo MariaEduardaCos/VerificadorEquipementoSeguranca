@@ -3,7 +3,6 @@ package br.unirv.capsafe.ui.detect
 import android.app.Application
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import br.unirv.capsafe.data.AppPrefs
@@ -11,8 +10,7 @@ import br.unirv.capsafe.data.ServiceLocator
 import br.unirv.capsafe.data.model.BoundingBox
 import br.unirv.capsafe.data.model.InferenceResult
 import br.unirv.capsafe.data.SyncOutcome
-import br.unirv.capsafe.inference.BitmapUtils
-import br.unirv.capsafe.inference.YoloOnnxDetector
+import br.unirv.capsafe.domain.yolo.YoloDetector
 import br.unirv.capsafe.util.AppUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,17 +18,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * RF9 — ViewModel da Tela 1/2 com MVVM, Coroutines e StateFlow.
  * Orquestra: modelo ONNX (RF1), aquisição de imagem (RF2), parâmetros (RF3),
  * inferência local (RF4), métricas geométricas (RF5) e envio ao servidor (RF6).
+ *
+ * A inferência usa o detector da camada de domínio (domain/yolo/YoloDetector.kt),
+ * portado do projeto de referência AlessaApp e adaptado ao contexto EPI.
  */
 class DetectViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = ServiceLocator.repository(application)
-    private var detector: YoloOnnxDetector? = null
+    private var detector: YoloDetector? = null
 
     data class DetectUiState(
         val modelLoaded: Boolean = false,
@@ -68,10 +68,10 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
     /** RF1 — carrega o modelo embarcado em assets/best.onnx (se existir). */
     private suspend fun carregarModeloEmbarcado() {
         val context = getApplication<Application>()
+        val rotulos = resolverRotulos(context)
         try {
-            val bytes = context.assets.open(MODEL_ASSET).use { it.readBytes() }
-            val rotulos = resolverRotulos(context)
-            val novoDetector = YoloOnnxDetector(rotulos).apply { loadFromBytes(bytes, MODEL_ASSET) }
+            val novoDetector = YoloDetector(context, rotulos)
+            novoDetector.loadModelFromAsset(MODEL_ASSET)
             detector = novoDetector
             _uiState.update {
                 it.copy(
@@ -88,7 +88,7 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
                     modelName = "",
                     modelError = "Modelo ONNX não encontrado em assets/$MODEL_ASSET. " +
                         "Coloque o arquivo ou use \"Selecionar modelo\".",
-                    labels = resolverRotulos(context)
+                    labels = rotulos
                 )
             }
         }
@@ -115,28 +115,29 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             val context = getApplication<Application>()
             try {
-                val destino = java.io.File(context.cacheDir, "modelos/${System.currentTimeMillis()}_modelo.onnx")
-                destino.parentFile?.mkdirs()
-                context.contentResolver.openInputStream(uri)?.use { entrada ->
-                    destino.outputStream().use { saida -> entrada.copyTo(saida) }
-                } ?: error("Não foi possível ler o arquivo selecionado.")
-                val bytes = destino.readBytes()
-                val rotulos = resolverRotulos(context)
-                val novoDetector = (detector ?: YoloOnnxDetector(rotulos)).apply {
-                    labels = rotulos
-                    loadFromBytes(bytes, destino.name)
-                }
+                val rotulos = _uiState.value.labels.ifEmpty { resolverRotulos(context) }
+                val nome = uri.lastPathSegment
+                    ?.substringAfterLast('/')
+                    ?.takeIf { it.endsWith(".onnx") }
+                    ?: "modelo_personalizado.onnx"
+
+                val novoDetector = (detector ?: YoloDetector(context, rotulos))
+                novoDetector.setCustomLabels(rotulos)
+                novoDetector.loadModelFromUri(uri, nome)
                 detector = novoDetector
+
                 _uiState.update {
                     it.copy(
                         modelLoaded = true,
-                        modelName = destino.name,
+                        modelName = novoDetector.loadedModelName,
                         modelError = null,
                         labels = rotulos
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(modelError = "Falha ao carregar modelo: ${e.message}") }
+                _uiState.update {
+                    it.copy(modelError = "Falha ao carregar modelo: ${e.message}")
+                }
             }
         }
     }
@@ -146,20 +147,18 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             val context = getApplication<Application>()
             val bitmap = AppUtils.decodificarImagem(context, uri)
-            withContext(Dispatchers.Main) {
-                if (bitmap == null) {
-                    _uiState.update { it.copy(errorMessage = "Não foi possível abrir a imagem.") }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            imageUri = uri,
-                            imageBitmap = bitmap,
-                            errorMessage = null,
-                            result = null,
-                            annotatedBitmap = null,
-                            syncMessage = null
-                        )
-                    }
+            if (bitmap == null) {
+                _uiState.update { it.copy(errorMessage = "Não foi possível abrir a imagem.") }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        imageUri = uri,
+                        imageBitmap = bitmap,
+                        errorMessage = null,
+                        result = null,
+                        annotatedBitmap = null,
+                        syncMessage = null
+                    )
                 }
             }
         }
@@ -195,10 +194,9 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
     /** Rótulos personalizados separados por vírgula (Tela 1). */
     fun onCustomLabelsChange(texto: String) {
         AppPrefs.setCustomLabels(getApplication(), texto)
-        val context = getApplication<Application>()
         val rotulos = if (texto.isBlank()) resolverRotulosCustom()
         else texto.split(',').map { it.trim() }.filter { it.isNotEmpty() }
-        detector?.labels = rotulos
+        detector?.setCustomLabels(rotulos)
         _uiState.update { it.copy(customLabelsText = texto, labels = rotulos) }
     }
 
@@ -225,27 +223,28 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val det = detector ?: error("Modelo não carregado.")
-                val inicio = SystemClock.elapsedRealtime()
-                val detections = det.detect(
-                    source = bitmap,
-                    confidenceThreshold = estado.confidence,
+
+                // RF4 — detecção local (redimensiona → CHW → ORT → filtro RF3 → NMS),
+                // que já devolve a imagem anotada e o tempo de execução.
+                val resumo = det.detect(
+                    bitmap = bitmap,
+                    confThreshold = estado.confidence,
                     iouThreshold = 0.45f,
                     allowedLabels = estado.selectedLabels
                 )
-                val tempoMs = SystemClock.elapsedRealtime() - inicio
 
                 // RF5 — caixas na resolução original, ordenadas por confiança
-                val boxes = detections
-                    .sortedByDescending { it.confidence }
+                val boxes = resumo.detections
+                    .sortedByDescending { it.score }
                     .mapIndexed { indice, raw ->
                         BoundingBox(
                             boxId = indice + 1,
                             classLabel = raw.label,
-                            confidence = raw.confidence,
-                            xMinPx = raw.xMin,
-                            yMinPx = raw.yMin,
-                            widthPx = raw.xMax - raw.xMin,
-                            heightPx = raw.yMax - raw.yMin
+                            confidence = raw.score,
+                            xMinPx = raw.box.x1,
+                            yMinPx = raw.box.y1,
+                            widthPx = raw.box.width,
+                            heightPx = raw.box.height
                         )
                     }
 
@@ -253,13 +252,11 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
                     sessionId = InferenceResult.novoIdSessao(),
                     timestampMs = System.currentTimeMillis(),
                     modelName = det.loadedModelName.ifEmpty { estado.modelName },
-                    executionTimeMs = tempoMs,
+                    executionTimeMs = resumo.inferenceTimeMs,
                     imageWidthPx = bitmap.width,
                     imageHeightPx = bitmap.height,
                     boundingBoxes = boxes
                 )
-
-                val anotada = BitmapUtils.annotate(bitmap, boxes)
 
                 // RF6 — envio automático POST JSON ao backend
                 val sync = repository.salvarInferencia(
@@ -276,13 +273,16 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
                     it.copy(
                         isRunning = false,
                         result = resultado,
-                        annotatedBitmap = anotada,
+                        annotatedBitmap = resumo.annotatedBitmap,
                         syncMessage = mensagemSync
                     )
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(isRunning = false, errorMessage = e.message ?: "Erro na inferência.")
+                    it.copy(
+                        isRunning = false,
+                        errorMessage = e.message ?: "Erro na inferência."
+                    )
                 }
             }
         }
@@ -295,8 +295,17 @@ class DetectViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun setErrorMessage(mensagem: String) {
+        _uiState.update { it.copy(errorMessage = mensagem) }
+    }
+
     fun limparErro() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    override fun onCleared() {
+        detector?.close()
+        super.onCleared()
     }
 
     companion object {

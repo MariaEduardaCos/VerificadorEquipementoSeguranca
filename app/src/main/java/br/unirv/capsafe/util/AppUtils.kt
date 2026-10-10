@@ -12,14 +12,20 @@ import kotlin.math.max
 /** Utilitários de imagem (RF2) e formatação de data/hora (RF8). */
 object AppUtils {
 
-    /** Decodifica imagem do Uri com subamostragem para controlar memória. */
+    /** Decodifica imagem do Uri com subamostragem e correção de rotação EXIF. */
     fun decodificarImagem(context: Context, uri: Uri, maxDimensao: Int = 1920): Bitmap? {
         return try {
             val resolver = context.contentResolver
+
+            // Leitura dos bytes uma única vez para garantir estabilidade em qualquer ContentProvider/FileProvider
+            val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: return null
+            if (bytes.isEmpty()) return null
+
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            resolver.openInputStream(uri)?.use {
-                BitmapFactory.decodeStream(it, null, bounds)
-            } ?: return null
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
             var amostra = 1
             val ladoMaior = max(bounds.outWidth, bounds.outHeight)
@@ -29,12 +35,46 @@ object AppUtils {
             val opcoes = BitmapFactory.Options().apply {
                 inSampleSize = amostra
                 inPreferredConfig = Bitmap.Config.ARGB_8888
+                inMutable = true
             }
-            resolver.openInputStream(uri)?.use {
-                BitmapFactory.decodeStream(it, null, opcoes)
+            val rawBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opcoes)
+                ?: return null
+
+            val bitmapPronto = if (rawBitmap.config == Bitmap.Config.HARDWARE) {
+                rawBitmap.copy(Bitmap.Config.ARGB_8888, true) ?: rawBitmap
+            } else {
+                rawBitmap
+            }
+
+            rotacionarConformeExif(bytes, bitmapPronto)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    private fun rotacionarConformeExif(bytes: ByteArray, bitmap: Bitmap): Bitmap {
+        return try {
+            val inputStream = java.io.ByteArrayInputStream(bytes)
+            val exif = android.media.ExifInterface(inputStream)
+            val orientation = exif.getAttributeInt(
+                android.media.ExifInterface.TAG_ORIENTATION,
+                android.media.ExifInterface.ORIENTATION_NORMAL
+            )
+            val degrees = when (orientation) {
+                android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+            if (degrees != 0f) {
+                val matrix = android.graphics.Matrix().apply { postRotate(degrees) }
+                Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            } else {
+                bitmap
             }
         } catch (e: Exception) {
-            null
+            bitmap
         }
     }
 

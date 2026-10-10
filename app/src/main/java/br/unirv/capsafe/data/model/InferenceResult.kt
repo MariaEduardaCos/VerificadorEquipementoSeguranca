@@ -1,5 +1,7 @@
 package br.unirv.capsafe.data.model
 
+import br.unirv.capsafe.data.local.CaixaEntity
+import br.unirv.capsafe.data.local.SessaoEntity
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
